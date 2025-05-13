@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import './App.css';
+import './App.css'; // Make sure this file exists and has some basic styling
 
 function App() {
   const [notes, setNotes] = useState([]);
@@ -8,45 +8,44 @@ function App() {
   const [content, setContent] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Ensure VITE_API_URL is set in your Vercel environment variables
-  // It should point to your deployed backend, e.g., https://your-backend.onrender.com/api
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  // Effect hook to fetch notes when the component mounts
   useEffect(() => {
     fetchNotes();
-  }, []); // Empty dependency array means this runs once on mount
+  }, []);
 
-  // Function to fetch all notes from the backend
   const fetchNotes = async () => {
-    setIsLoading(true); // Set loading state before fetching
+    setIsLoading(true);
     try {
       const response = await axios.get(`${API_URL}/notes`);
-      setNotes(response.data); // Update notes state with data from API
+      // --- DIAGNOSTIC LOGGING ---
+      // Log the raw data received from the backend
+      console.log('Fetched notes data:', response.data);
+      // --- END DIAGNOSTIC LOGGING ---
+      setNotes(response.data);
     } catch (err) {
       console.error('Error fetching notes:', err);
-      // Log more detailed error information if available
       if (err.response) {
         console.error("Axios error data (fetchNotes):", err.response.data);
         console.error("Axios error status (fetchNotes):", err.response.status);
       }
+      setNotes([]); // Set notes to empty array on error to avoid issues with .map
     } finally {
-      setIsLoading(false); // Set loading to false after fetch attempt (success or fail)
+      setIsLoading(false);
     }
   };
 
-  // Function to handle form submission for creating a new note
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevent default form submission behavior
-    if (!content.trim()) { // Basic validation: ensure content is not empty
+    e.preventDefault();
+    if (!content.trim()) {
         alert("Note content cannot be empty!");
         return;
     }
     try {
       await axios.post(`${API_URL}/notes`, { title, content });
-      setTitle(''); // Clear title input
-      setContent(''); // Clear content textarea
-      fetchNotes(); // Refresh the notes list to show the new note
+      setTitle('');
+      setContent('');
+      fetchNotes();
     } catch (err) {
       console.error('Error creating note:', err);
       if (err.response) {
@@ -56,13 +55,9 @@ function App() {
     }
   };
 
-  // Function to handle deleting a note
   const handleDelete = async (id) => {
-    // --- DIAGNOSTIC LOGGING ---
-    // Log the ID and its type to help debug the "undefined" ID issue
     console.log("Attempting to delete note with ID:", id);
     console.log("Type of ID being sent to delete:", typeof id);
-    // --- END DIAGNOSTIC LOGGING ---
 
     if (id === undefined) {
         console.error("Delete aborted: ID is undefined.");
@@ -72,12 +67,10 @@ function App() {
 
     try {
       await axios.delete(`${API_URL}/notes/${id}`);
-      fetchNotes(); // Refresh the notes list after deleting a note
+      fetchNotes();
     } catch (err) {
       console.error('Error deleting note:', err);
       if (err.response) {
-        // This will show the specific error message from your backend,
-        // like the "invalid input syntax for type integer" if the ID is still problematic.
         console.error("Axios error data (handleDelete):", err.response.data);
         console.error("Axios error status (handleDelete):", err.response.status);
         alert(`Error deleting note: ${err.response.data.message || 'Server error'}`);
@@ -102,7 +95,7 @@ function App() {
           placeholder="Your note content..."
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          required // HTML5 validation for required field
+          required
         />
         <button type="submit">Post It!</button>
       </form>
@@ -111,20 +104,20 @@ function App() {
         <p>Loading notes...</p>
       ) : (
         <div className="notes-grid">
-          {/* Ensure notes is an array before mapping */}
           {Array.isArray(notes) && notes.length > 0 ? (
-            notes.map((note) => (
-              // Ensure 'note' and 'note._id' are valid before rendering
-              note && note._id ? (
+            notes.map((note, index) => ( // Added index for a more robust key if _id is missing
+              // Check if note object itself is valid, then check for _id
+              note && typeof note === 'object' && note._id ? (
                 <div key={note._id} className="note">
                   <h3>{note.title || 'No Title'}</h3>
                   <p>{note.content}</p>
                   <button onClick={() => handleDelete(note._id)}>Delete</button>
                 </div>
               ) : (
-                // Optional: Render a placeholder or log an error for invalid note data
-                <div key={Math.random()} className="note error-note"> 
-                  <p>Invalid note data received.</p>
+                <div key={index} className="note error-note"> {/* Use index as fallback key */}
+                  <p>Invalid note data received. Check console for details.</p>
+                  {/* Log the problematic note for easier debugging */}
+                  <script>{console.log("Problematic note data:", note)}</script>
                 </div>
               )
             ))
@@ -138,3 +131,4 @@ function App() {
 }
 
 export default App;
+
